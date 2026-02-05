@@ -25,9 +25,12 @@ export function Canvas({
   const [loop, setLoop] = useState(true);
   const [animationKey, setAnimationKey] = useState(0);
   const elementRef = useRef<HTMLDivElement>(null);
+  const styleRef = useRef<HTMLStyleElement | null>(null);
 
-  // Generate CSS @keyframes from animation data
-  const generateKeyframesCSS = () => {
+  // Inject CSS @keyframes into DOM
+  useEffect(() => {
+    // Generate CSS @keyframes from animation data
+    const generateKeyframesCSS = () => {
     const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
     
     const keyframeRules = sortedKeyframes.map(kf => {
@@ -48,7 +51,26 @@ export function Canvas({
 @keyframes previewAnimation {
   ${keyframeRules}
 }`;
-  };
+    };
+
+    // Remove old style if exists
+    if (styleRef.current) {
+      styleRef.current.remove();
+    }
+
+    // Create new style element
+    const style = document.createElement('style');
+    style.textContent = generateKeyframesCSS();
+    document.head.appendChild(style);
+    styleRef.current = style;
+
+    // Cleanup on unmount
+    return () => {
+      if (styleRef.current) {
+        styleRef.current.remove();
+      }
+    };
+  }, [animation.keyframes, animation.duration]);
 
   // Generate animation CSS property
   const getAnimationStyle = (): React.CSSProperties => {
@@ -85,8 +107,6 @@ export function Canvas({
 
   return (
     <div className="flex-1 bg-background p-6 flex flex-col">
-      <style>{generateKeyframesCSS()}</style>
-      
       <h2 className="text-2xl font-bold text-text mb-6">Preview</h2>
 
       {/* Preview Area */}
