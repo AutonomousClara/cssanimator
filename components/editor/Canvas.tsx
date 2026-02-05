@@ -23,10 +23,9 @@ export function Canvas({
 }: CanvasProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loop, setLoop] = useState(true);
-  const [key, setKey] = useState(0);
 
-  // Generate complete HTML for iframe using srcdoc
-  const iframeHTML = useMemo(() => {
+  // Generate complete HTML for preview
+  const generatePreviewHTML = useMemo(() => {
     const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
     
     const keyframeRules = sortedKeyframes.map(kf => {
@@ -50,34 +49,126 @@ export function Canvas({
     return `<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSSAnimator Preview</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      width: 100%;
+      width: 100vw;
       height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: transparent;
+      background: #1a1a2e;
       overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
     }
     @keyframes previewAnimation {
 ${keyframeRules}
     }
     #element {
-      width: 96px;
-      height: 96px;
-      border-radius: 0.5rem;
+      width: 120px;
+      height: 120px;
+      border-radius: 0.75rem;
       background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+      box-shadow: 0 20px 60px rgba(139, 92, 246, 0.4);
       ${animationCSS}
+    }
+    .controls {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    .play-btn {
+      background: #8b5cf6;
+      color: white;
+    }
+    .play-btn:hover {
+      background: #7c3aed;
+      transform: scale(1.05);
+    }
+    .info {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <div id="element"></div>
+  <div class="info">
+    Duration: ${animation.duration}s | Keyframes: ${animation.keyframes.length} | Loop: ${loop ? 'On' : 'Off'}
+  </div>
+  <div class="controls">
+    <button class="play-btn" onclick="toggleAnimation()">
+      <span id="play-text">${isPlaying ? '⏸ Pause' : '▶ Play'}</span>
+    </button>
+    <button class="play-btn" onclick="resetAnimation()">⟲ Reset</button>
+  </div>
+  
+  <script>
+    let playing = ${isPlaying};
+    const element = document.getElementById('element');
+    const playText = document.getElementById('play-text');
+    
+    function toggleAnimation() {
+      playing = !playing;
+      if (playing) {
+        element.style.animation = 'previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal';
+        playText.textContent = '⏸ Pause';
+      } else {
+        element.style.animationPlayState = 'paused';
+        playText.textContent = '▶ Play';
+      }
+    }
+    
+    function resetAnimation() {
+      element.style.animation = 'none';
+      setTimeout(() => {
+        element.style.animation = 'previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal';
+        playing = true;
+        playText.textContent = '⏸ Pause';
+      }, 10);
+    }
+    
+    // Auto-play on load
+    ${isPlaying ? 'setTimeout(() => toggleAnimation(), 100);' : ''}
+  </script>
 </body>
 </html>`;
   }, [animation.keyframes, animation.duration, isPlaying, loop]);
+
+  const openPreview = () => {
+    const previewWindow = window.open('', 'CSSAnimator Preview', 'width=800,height=600');
+    if (previewWindow) {
+      previewWindow.document.write(generatePreviewHTML);
+      previewWindow.document.close();
+    }
+  };
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -85,8 +176,6 @@ ${keyframeRules}
 
   const handleReset = () => {
     setIsPlaying(false);
-    setKey(prev => prev + 1);
-    
     setTimeout(() => {
       setIsPlaying(true);
     }, 50);
@@ -97,14 +186,17 @@ ${keyframeRules}
       <h2 className="text-2xl font-bold text-text mb-6">Preview</h2>
 
       {/* Preview Area */}
-      <div className="flex-1 flex items-center justify-center bg-surface rounded-lg mb-6 min-h-[300px] relative overflow-hidden">
-        <iframe
-          key={key}
-          srcDoc={iframeHTML}
-          className="w-full h-full border-0"
-          title="Animation Preview"
-          sandbox="allow-same-origin"
-        />
+      <div className="flex-1 flex flex-col items-center justify-center bg-surface rounded-lg mb-6 min-h-[300px] relative overflow-hidden">
+        {/* Static preview element */}
+        <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary to-accent" />
+        
+        {/* Info text */}
+        <div className="mt-6 text-center text-text/60 text-sm space-y-2">
+          <p>Static preview • Click below to see animation in action</p>
+          <Button onClick={openPreview} variant="primary">
+            🚀 Open Preview in New Tab
+          </Button>
+        </div>
       </div>
 
       {/* Playback Controls */}
