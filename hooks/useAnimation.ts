@@ -12,8 +12,16 @@ export function useAnimation(initialAnimation?: Animation) {
       iterationCount: 1,
       direction: 'normal',
       keyframes: [
-        createDefaultKeyframe(0),
-        createDefaultKeyframe(100),
+        {
+          ...createDefaultKeyframe(0),
+          opacity: 1,
+          transform: { translateX: 0, translateY: 0, scale: 1, rotate: 0 },
+        },
+        {
+          ...createDefaultKeyframe(100),
+          opacity: 1,
+          transform: { translateX: 0, translateY: -20, scale: 1, rotate: 0 },
+        },
       ],
     }
   );
