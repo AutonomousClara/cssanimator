@@ -26,6 +26,9 @@ export function Canvas({
 
   // Generate complete HTML for preview
   const generatePreviewHTML = useMemo(() => {
+    // Safeguard: ensure duration is valid (prevent race condition on first render)
+    const safeDuration = Math.max(animation.duration || 2, 0.1);
+    
     const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
     
     const keyframeRules = sortedKeyframes.map(kf => {
@@ -43,7 +46,7 @@ export function Canvas({
     }).join('\n');
 
     const animationCSS = isPlaying
-      ? `animation: previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal;`
+      ? `animation: previewAnimation ${safeDuration}s ease ${loop ? 'infinite' : '1'} normal;`
       : 'animation: none;';
 
     return `<!DOCTYPE html>
@@ -121,7 +124,7 @@ ${keyframeRules}
 <body>
   <div id="element"></div>
   <div class="info">
-    Duration: ${animation.duration}s | Keyframes: ${animation.keyframes.length} | Loop: ${loop ? 'On' : 'Off'}
+    Duration: ${safeDuration}s | Keyframes: ${animation.keyframes.length} | Loop: ${loop ? 'On' : 'Off'}
   </div>
   <div class="controls">
     <button class="play-btn" onclick="toggleAnimation()">
@@ -138,7 +141,7 @@ ${keyframeRules}
     function toggleAnimation() {
       playing = !playing;
       if (playing) {
-        element.style.animation = 'previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal';
+        element.style.animation = 'previewAnimation ${safeDuration}s ease ${loop ? 'infinite' : '1'} normal';
         playText.textContent = '⏸ Pause';
       } else {
         element.style.animationPlayState = 'paused';
@@ -149,7 +152,7 @@ ${keyframeRules}
     function resetAnimation() {
       element.style.animation = 'none';
       setTimeout(() => {
-        element.style.animation = 'previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal';
+        element.style.animation = 'previewAnimation ${safeDuration}s ease ${loop ? 'infinite' : '1'} normal';
         playing = true;
         playText.textContent = '⏸ Pause';
       }, 10);
