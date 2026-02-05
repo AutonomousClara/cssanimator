@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAnimation } from '@/hooks/useAnimation';
 import { Sidebar } from '@/components/editor/Sidebar';
-import { Canvas } from '@/components/editor/Canvas';
+import { Canvas } from '@/components/editor/Canvas-v2';
 import { ExportPanel } from '@/components/editor/ExportPanel';
 import { Button } from '@/components/ui/Button';
 import { presets } from '@/lib/presets';
