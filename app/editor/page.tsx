@@ -1,20 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import dynamic from 'next/dynamic';
 import { useAnimation } from '@/hooks/useAnimation';
 import { Sidebar } from '@/components/editor/Sidebar';
+import { Canvas } from '@/components/editor/Canvas';
 import { ExportPanel } from '@/components/editor/ExportPanel';
 import { Button } from '@/components/ui/Button';
 import { presets } from '@/lib/presets';
 import { Keyframe } from '@/lib/types';
 import Link from 'next/link';
-
-// Import Canvas without SSR to prevent hydration issues
-const Canvas = dynamic<any>(
-  () => import('@/components/editor/Canvas').then(mod => mod.Canvas),
-  { ssr: false }
-);
 
 export default function EditorPage() {
   const {
