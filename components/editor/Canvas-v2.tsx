@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Animation, Keyframe } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Slider } from '@/components/ui/Slider';
@@ -21,10 +21,7 @@ export function Canvas({
   onUpdateKeyframePosition,
   onUpdateDuration,
 }: CanvasProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [loop, setLoop] = useState(true);
-
-  // Generate complete HTML for preview
+  // Generate complete HTML for preview window
   const generatePreviewHTML = useMemo(() => {
     // Safeguard: ensure duration is valid (prevent race condition on first render)
     const safeDuration = Math.max(animation.duration || 2, 0.1);
@@ -44,10 +41,6 @@ export function Canvas({
       
       return `  ${kf.position}% { ${transformRule} ${opacityRule} }`;
     }).join('\n');
-
-    const animationCSS = isPlaying
-      ? `animation: previewAnimation ${safeDuration}s ease ${loop ? 'infinite' : '1'} normal;`
-      : 'animation: none;';
 
     return `<!DOCTYPE html>
 <html>
@@ -76,7 +69,7 @@ ${keyframeRules}
       border-radius: 0.75rem;
       background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
       box-shadow: 0 20px 60px rgba(139, 92, 246, 0.4);
-      ${animationCSS}
+      animation: previewAnimation ${safeDuration}s ease infinite normal;
     }
     .controls {
       position: fixed;
@@ -124,24 +117,24 @@ ${keyframeRules}
 <body>
   <div id="element"></div>
   <div class="info">
-    Duration: ${safeDuration}s | Keyframes: ${animation.keyframes.length} | Loop: ${loop ? 'On' : 'Off'}
+    Duration: ${safeDuration}s | Keyframes: ${animation.keyframes.length}
   </div>
   <div class="controls">
     <button class="play-btn" onclick="toggleAnimation()">
-      <span id="play-text">${isPlaying ? '⏸ Pause' : '▶ Play'}</span>
+      <span id="play-text">⏸ Pause</span>
     </button>
     <button class="play-btn" onclick="resetAnimation()">⟲ Reset</button>
   </div>
   
   <script>
-    let playing = ${isPlaying};
+    let playing = true;
     const element = document.getElementById('element');
     const playText = document.getElementById('play-text');
     
     function toggleAnimation() {
       playing = !playing;
       if (playing) {
-        element.style.animation = 'previewAnimation ${safeDuration}s ease ${loop ? 'infinite' : '1'} normal';
+        element.style.animationPlayState = 'running';
         playText.textContent = '⏸ Pause';
       } else {
         element.style.animationPlayState = 'paused';
@@ -152,18 +145,15 @@ ${keyframeRules}
     function resetAnimation() {
       element.style.animation = 'none';
       setTimeout(() => {
-        element.style.animation = 'previewAnimation ${safeDuration}s ease ${loop ? 'infinite' : '1'} normal';
+        element.style.animation = 'previewAnimation ${safeDuration}s ease infinite normal';
         playing = true;
         playText.textContent = '⏸ Pause';
       }, 10);
     }
-    
-    // Auto-play on load
-    ${isPlaying ? 'setTimeout(() => toggleAnimation(), 100);' : ''}
   </script>
 </body>
 </html>`;
-  }, [animation.keyframes, animation.duration, isPlaying, loop]);
+  }, [animation.keyframes, animation.duration]);
 
   const openPreview = () => {
     const previewWindow = window.open('', 'CSSAnimator Preview', 'width=800,height=600');
@@ -171,17 +161,6 @@ ${keyframeRules}
       previewWindow.document.write(generatePreviewHTML);
       previewWindow.document.close();
     }
-  };
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleReset = () => {
-    setIsPlaying(false);
-    setTimeout(() => {
-      setIsPlaying(true);
-    }, 50);
   };
 
   return (
@@ -202,26 +181,8 @@ ${keyframeRules}
         </div>
       </div>
 
-      {/* Playback Controls */}
+      {/* Duration Control */}
       <div className="space-y-4 mb-6">
-        <div className="flex items-center gap-2">
-          <Button onClick={handlePlayPause} variant="primary">
-            {isPlaying ? '⏸ Pause' : '▶ Play'}
-          </Button>
-          <Button onClick={handleReset} variant="outline">
-            ⟲ Reset
-          </Button>
-          <label className="flex items-center gap-2 ml-auto">
-            <input
-              type="checkbox"
-              checked={loop}
-              onChange={(e) => setLoop(e.target.checked)}
-              className="w-4 h-4 accent-primary"
-            />
-            <span className="text-text text-sm">Loop</span>
-          </label>
-        </div>
-
         <Slider
           label="Duration"
           value={animation.duration}
