@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Animation, Keyframe } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Slider } from '@/components/ui/Slider';
@@ -23,40 +23,31 @@ export function Canvas({
 }: CanvasProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loop, setLoop] = useState(true);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [key, setKey] = useState(0);
 
-  // Update iframe content when animation changes or play state changes
-  useEffect(() => {
-    // Generate CSS @keyframes from animation data
-    const generateKeyframesCSS = () => {
-      const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
+  // Generate complete HTML for iframe using srcdoc
+  const iframeHTML = useMemo(() => {
+    const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
+    
+    const keyframeRules = sortedKeyframes.map(kf => {
+      const transforms: string[] = [];
       
-      const keyframeRules = sortedKeyframes.map(kf => {
-        const transforms: string[] = [];
-        
-        if (kf.transform.translateX !== 0) transforms.push(`translateX(${kf.transform.translateX}px)`);
-        if (kf.transform.translateY !== 0) transforms.push(`translateY(${kf.transform.translateY}px)`);
-        if (kf.transform.scale !== 1) transforms.push(`scale(${kf.transform.scale})`);
-        if (kf.transform.rotate !== 0) transforms.push(`rotate(${kf.transform.rotate}deg)`);
-        
-        const transformRule = transforms.length > 0 ? `transform: ${transforms.join(' ')};` : '';
-        const opacityRule = `opacity: ${kf.opacity};`;
-        
-        return `  ${kf.position}% { ${transformRule} ${opacityRule} }`;
-      }).join('\n');
+      if (kf.transform.translateX !== 0) transforms.push(`translateX(${kf.transform.translateX}px)`);
+      if (kf.transform.translateY !== 0) transforms.push(`translateY(${kf.transform.translateY}px)`);
+      if (kf.transform.scale !== 1) transforms.push(`scale(${kf.transform.scale})`);
+      if (kf.transform.rotate !== 0) transforms.push(`rotate(${kf.transform.rotate}deg)`);
+      
+      const transformRule = transforms.length > 0 ? `transform: ${transforms.join(' ')};` : '';
+      const opacityRule = `opacity: ${kf.opacity};`;
+      
+      return `  ${kf.position}% { ${transformRule} ${opacityRule} }`;
+    }).join('\n');
 
-      return `@keyframes previewAnimation {\n${keyframeRules}\n}`;
-    };
+    const animationCSS = isPlaying
+      ? `animation: previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal;`
+      : 'animation: none;';
 
-    // Generate complete HTML for iframe
-    const generateIframeHTML = () => {
-      const keyframesCSS = generateKeyframesCSS();
-      const animationCSS = isPlaying
-        ? `animation: previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal;`
-        : 'animation: none;';
-
-      return `
-<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html>
 <head>
   <style>
@@ -70,7 +61,9 @@ export function Canvas({
       background: transparent;
       overflow: hidden;
     }
-    ${keyframesCSS}
+    @keyframes previewAnimation {
+${keyframeRules}
+    }
     #element {
       width: 96px;
       height: 96px;
@@ -84,16 +77,6 @@ export function Canvas({
   <div id="element"></div>
 </body>
 </html>`;
-    };
-    
-    if (iframeRef.current) {
-      const iframeDoc = iframeRef.current.contentDocument;
-      if (iframeDoc) {
-        iframeDoc.open();
-        iframeDoc.write(generateIframeHTML());
-        iframeDoc.close();
-      }
-    }
   }, [animation.keyframes, animation.duration, isPlaying, loop]);
 
   const handlePlayPause = () => {
@@ -102,8 +85,8 @@ export function Canvas({
 
   const handleReset = () => {
     setIsPlaying(false);
+    setKey(prev => prev + 1);
     
-    // Restart animation after reset
     setTimeout(() => {
       setIsPlaying(true);
     }, 50);
@@ -116,7 +99,8 @@ export function Canvas({
       {/* Preview Area */}
       <div className="flex-1 flex items-center justify-center bg-surface rounded-lg mb-6 min-h-[300px] relative overflow-hidden">
         <iframe
-          ref={iframeRef}
+          key={key}
+          srcDoc={iframeHTML}
           className="w-full h-full border-0"
           title="Animation Preview"
           sandbox="allow-same-origin"
