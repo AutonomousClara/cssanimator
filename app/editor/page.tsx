@@ -10,9 +10,9 @@ import { presets } from '@/lib/presets';
 import { Keyframe } from '@/lib/types';
 import Link from 'next/link';
 
-// Import Canvas without SSR to prevent hydration issues with iframe
-const Canvas = dynamic(
-  () => import('@/components/editor/Canvas').then(mod => ({ default: mod.Canvas })),
+// Import Canvas without SSR to prevent hydration issues
+const Canvas = dynamic<any>(
+  () => import('@/components/editor/Canvas').then(mod => mod.Canvas),
   { ssr: false }
 );
 
