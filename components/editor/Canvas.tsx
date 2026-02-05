@@ -23,81 +23,85 @@ export function Canvas({
 }: CanvasProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loop, setLoop] = useState(true);
-  const [animationKey, setAnimationKey] = useState(0);
-  const elementRef = useRef<HTMLDivElement>(null);
-  const styleRef = useRef<HTMLStyleElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Inject CSS @keyframes into DOM
+  // Update iframe content when animation changes or play state changes
   useEffect(() => {
     // Generate CSS @keyframes from animation data
     const generateKeyframesCSS = () => {
-    const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
+      const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
+      
+      const keyframeRules = sortedKeyframes.map(kf => {
+        const transforms: string[] = [];
+        
+        if (kf.transform.translateX !== 0) transforms.push(`translateX(${kf.transform.translateX}px)`);
+        if (kf.transform.translateY !== 0) transforms.push(`translateY(${kf.transform.translateY}px)`);
+        if (kf.transform.scale !== 1) transforms.push(`scale(${kf.transform.scale})`);
+        if (kf.transform.rotate !== 0) transforms.push(`rotate(${kf.transform.rotate}deg)`);
+        
+        const transformRule = transforms.length > 0 ? `transform: ${transforms.join(' ')};` : '';
+        const opacityRule = `opacity: ${kf.opacity};`;
+        
+        return `  ${kf.position}% { ${transformRule} ${opacityRule} }`;
+      }).join('\n');
+
+      return `@keyframes previewAnimation {\n${keyframeRules}\n}`;
+    };
+
+    // Generate complete HTML for iframe
+    const generateIframeHTML = () => {
+      const keyframesCSS = generateKeyframesCSS();
+      const animationCSS = isPlaying
+        ? `animation: previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal;`
+        : 'animation: none;';
+
+      return `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      overflow: hidden;
+    }
+    ${keyframesCSS}
+    #element {
+      width: 96px;
+      height: 96px;
+      border-radius: 0.5rem;
+      background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+      ${animationCSS}
+    }
+  </style>
+</head>
+<body>
+  <div id="element"></div>
+</body>
+</html>`;
+    };
     
-    const keyframeRules = sortedKeyframes.map(kf => {
-      const transforms: string[] = [];
-      
-      if (kf.transform.translateX !== 0) transforms.push(`translateX(${kf.transform.translateX}px)`);
-      if (kf.transform.translateY !== 0) transforms.push(`translateY(${kf.transform.translateY}px)`);
-      if (kf.transform.scale !== 1) transforms.push(`scale(${kf.transform.scale})`);
-      if (kf.transform.rotate !== 0) transforms.push(`rotate(${kf.transform.rotate}deg)`);
-      
-      const transformRule = transforms.length > 0 ? `transform: ${transforms.join(' ')};` : '';
-      const opacityRule = `opacity: ${kf.opacity};`;
-      
-      return `${kf.position}% { ${transformRule} ${opacityRule} }`;
-    }).join('\n  ');
-
-    return `
-@keyframes previewAnimation {
-  ${keyframeRules}
-}`;
-    };
-
-    // Remove old style if exists
-    if (styleRef.current) {
-      styleRef.current.remove();
-    }
-
-    // Create new style element
-    const style = document.createElement('style');
-    style.textContent = generateKeyframesCSS();
-    document.head.appendChild(style);
-    styleRef.current = style;
-
-    // Cleanup on unmount
-    return () => {
-      if (styleRef.current) {
-        styleRef.current.remove();
+    if (iframeRef.current) {
+      const iframeDoc = iframeRef.current.contentDocument;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(generateIframeHTML());
+        iframeDoc.close();
       }
-    };
-  }, [animation.keyframes, animation.duration]);
-
-  // Generate animation CSS property
-  const getAnimationStyle = (): React.CSSProperties => {
-    if (!isPlaying) {
-      return {
-        animationPlayState: 'paused',
-      };
     }
-
-    return {
-      animation: `previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal`,
-      animationPlayState: 'running',
-    };
-  };
+  }, [animation.keyframes, animation.duration, isPlaying, loop]);
 
   const handlePlayPause = () => {
-    if (!isPlaying) {
-      // Starting animation - force re-render with new key
-      setAnimationKey(prev => prev + 1);
-    }
     setIsPlaying(!isPlaying);
   };
 
   const handleReset = () => {
     setIsPlaying(false);
-    // Force re-render by updating key
-    setAnimationKey(prev => prev + 1);
     
     // Restart animation after reset
     setTimeout(() => {
@@ -111,11 +115,11 @@ export function Canvas({
 
       {/* Preview Area */}
       <div className="flex-1 flex items-center justify-center bg-surface rounded-lg mb-6 min-h-[300px] relative overflow-hidden">
-        <div
-          key={animationKey}
-          ref={elementRef}
-          className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary to-accent"
-          style={getAnimationStyle()}
+        <iframe
+          ref={iframeRef}
+          className="w-full h-full border-0"
+          title="Animation Preview"
+          sandbox="allow-same-origin"
         />
       </div>
 
