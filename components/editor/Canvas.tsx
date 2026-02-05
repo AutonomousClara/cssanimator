@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
 import { Animation, Keyframe } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Slider } from '@/components/ui/Slider';
@@ -24,50 +23,80 @@ export function Canvas({
 }: CanvasProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loop, setLoop] = useState(true);
+  const [animationKey, setAnimationKey] = useState(0);
+  const elementRef = useRef<HTMLDivElement>(null);
 
-  // Convert keyframes to Framer Motion keyframes
-  const generateMotionKeyframes = () => {
+  // Generate CSS @keyframes from animation data
+  const generateKeyframesCSS = () => {
     const sortedKeyframes = [...animation.keyframes].sort((a, b) => a.position - b.position);
+    
+    const keyframeRules = sortedKeyframes.map(kf => {
+      const transforms: string[] = [];
+      
+      if (kf.transform.translateX !== 0) transforms.push(`translateX(${kf.transform.translateX}px)`);
+      if (kf.transform.translateY !== 0) transforms.push(`translateY(${kf.transform.translateY}px)`);
+      if (kf.transform.scale !== 1) transforms.push(`scale(${kf.transform.scale})`);
+      if (kf.transform.rotate !== 0) transforms.push(`rotate(${kf.transform.rotate}deg)`);
+      
+      const transformRule = transforms.length > 0 ? `transform: ${transforms.join(' ')};` : '';
+      const opacityRule = `opacity: ${kf.opacity};`;
+      
+      return `${kf.position}% { ${transformRule} ${opacityRule} }`;
+    }).join('\n  ');
+
+    return `
+@keyframes previewAnimation {
+  ${keyframeRules}
+}`;
+  };
+
+  // Generate animation CSS property
+  const getAnimationStyle = (): React.CSSProperties => {
+    if (!isPlaying) {
+      return {
+        animationPlayState: 'paused',
+      };
+    }
 
     return {
-      x: sortedKeyframes.map(kf => kf.transform.translateX),
-      y: sortedKeyframes.map(kf => kf.transform.translateY),
-      scale: sortedKeyframes.map(kf => kf.transform.scale),
-      rotate: sortedKeyframes.map(kf => kf.transform.rotate),
-      opacity: sortedKeyframes.map(kf => kf.opacity),
+      animation: `previewAnimation ${animation.duration}s ease ${loop ? 'infinite' : '1'} normal`,
+      animationPlayState: 'running',
     };
   };
 
   const handlePlayPause = () => {
+    if (!isPlaying) {
+      // Starting animation - force re-render with new key
+      setAnimationKey(prev => prev + 1);
+    }
     setIsPlaying(!isPlaying);
   };
 
   const handleReset = () => {
     setIsPlaying(false);
-    // Force re-render by toggling key
-    setTimeout(() => setIsPlaying(true), 10);
+    // Force re-render by updating key
+    setAnimationKey(prev => prev + 1);
+    
+    // Restart animation after reset
+    setTimeout(() => {
+      setIsPlaying(true);
+    }, 50);
   };
 
   return (
     <div className="flex-1 bg-background p-6 flex flex-col">
+      <style>{generateKeyframesCSS()}</style>
+      
       <h2 className="text-2xl font-bold text-text mb-6">Preview</h2>
 
       {/* Preview Area */}
       <div className="flex-1 flex items-center justify-center bg-surface rounded-lg mb-6 min-h-[300px] relative overflow-hidden">
-        <AnimatePresence>
-          <motion.div
-            key={isPlaying ? 'playing' : 'paused'}
-            className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary to-accent"
-            initial={false}
-            animate={isPlaying ? generateMotionKeyframes() : {}}
-            transition={{
-              duration: animation.duration,
-              times: animation.keyframes.map(kf => kf.position / 100),
-              repeat: loop && isPlaying ? Infinity : 0,
-              ease: 'linear',
-            }}
-          />
-        </AnimatePresence>
+        <div
+          key={animationKey}
+          ref={elementRef}
+          className="w-24 h-24 rounded-lg bg-gradient-to-br from-primary to-accent"
+          style={getAnimationStyle()}
+        />
       </div>
 
       {/* Playback Controls */}
